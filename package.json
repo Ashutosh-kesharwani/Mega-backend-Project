@@ -1,0 +1,22 @@
+{
+  "name": "mega-video-player",
+  "version": "1.0.0",
+  "description": "It is the backend project comprises of every industry level practice , tools that generally we came across while performing backend development , every concept , Here we are going to build the video player similar functionality like youtube , every concept ",
+  "keywords": [
+    "javascript",
+    "backend"
+  ],
+  "license": "ISC",
+  "author": "Ashutosh Kesharwani",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "mongoose": "^9.1.6",
+    "nodemon": "^3.1.11"
+  }
+}
