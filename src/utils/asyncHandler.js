@@ -57,9 +57,14 @@ const asyncHandler = (requestHandler) => {
 }
 
 export {asyncHandler}
+
+// ye async handler khud ek func as a arg accept karta hai . and return bhi karta hai ek func ko
+
+So here asyncHandler hamara ek higher order func hota hai
 */
 const asyncHandler = (requestHandler) => {
-    (req,res,next) => {
+    // yha return karna mandatory as tye func lega and uspe promise ke through error handle karke usse return kar dega
+   return (req,res,next) => {
         Promise
         .resolve((requestHandler(req,res,next))).catch((err) => next(err))
     }
