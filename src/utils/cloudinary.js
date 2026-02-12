@@ -83,14 +83,23 @@ Organized way of adding files in cloudinary :
 
     // mostly hame sirf url chahitye 
 
-    console.log(`cloudinary url on which file get uploaded in cloudinary : ${responsesCloudinary.url}\n`);
+    // console.log(`cloudinary url on which file get uploaded in cloudinary : ${responsesCloudinary.url}\n`); 
+    // as abb iska kaam ho gya it is to simply see whether our file get uploaded successfully or not into our cloudinary . 
+
+  // Now imp ! As after file get successfully uploaded into cloudinary we have to unlink our file from local server with help of fs and unlinkSync as imp to Sync wla use here 
+  fs.unlinkSync(localFilePath);
+
   return responsesCloudinary; // pura response de dedo mostly url bhi de sakte ho
   
   }catch(error){
     fs.unlinkSync(localFilePath) // as koi error ki wjah se hamari file upload nhi hui to yha ye mandatory ki server se to hta do as server me hai , uske baad hi aage proceed so ho skta hai vo mailicious file ho to htana compulsory to use unlinkSync not normal unlink method of fs 
+
+    // so now future me jab file aaygi to if error aayga to bhi file unlink hoke local se del o jaygi and if error nhi aaya to bhi , 
     return null;
   }
  }
 
 
 export {uploadFileOnCloudinary}
+
+
