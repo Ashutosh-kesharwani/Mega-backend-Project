@@ -84,10 +84,27 @@ mostly issme itene ki hi jarurate poadti hai option ki nhi
 app.use(cookieParser())
 
 
+// so jitne middleware hai usse ham phle hi define karte hai 
 
-app.get('/',(req,res)=>{
-    res.send('<h1>Jai Shree Ram | Har Har Mahadev </h1>')
-})
+// Now time for defining routes 
+//Routes 
+// so ham yhi pe isko import karte hai route ko jha pe use not at top
+
+// Routes import
+import userRouter from './routes/user.routes.js'
+
+
+
+// Routes declartion
+/*
+so earlier we use like app.get as haqm yhi pe route bhi likh rahe the and yhi pe controllwr bhi call back me but abb ham sab seperate kar diya hai , so uske liye hame yha middleware use karna padega so uske liye use app.use()
+
+middleware : app.use("/users",userRouter) 
+: so isse ye hoga ki jaise hi ham users pe jayenge , waise hi kya hoga ye middleware hamara userRouter ko call kar dega and iss router ko power de dega ki tum jo func waigaira call karna hai karlo .
+*/
+// app.use("/users",userRouter)
+// use this standard jab api bna rahe hai to 
+app.use("/api/v1/users",userRouter)
 
 
 export {app};
@@ -127,3 +144,7 @@ Response : me ki ham uss data ko kaise process karenge and wapis kaise send kare
 
 So these configuration for middleware and configuration setup pahle app.use use karo and then app.get sab
 */
+
+
+
+
