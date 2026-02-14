@@ -74,7 +74,9 @@ Organized way of adding files in cloudinary :
       resource_type:"auto"
     })
     // Upto this point file has been successfully uploaded 
-    console.log('File is uploaded Sucessfully on Cloudinary \n');
+    
+    // console.log('File is uploaded Sucessfully on Cloudinary \n');
+
     // to deep dive ki kaise response milta hai cloudinary se  deep dive
     // console.log(`Response from cloudinary : 
     //   ${responsesCloudinary}
