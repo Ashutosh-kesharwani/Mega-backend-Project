@@ -1,6 +1,7 @@
 import {Router} from 'express'
-import { registerUser } from '../controllers/user.controller.js'
+import { loginUser, logoutUser, registerUser,refreshAccessToken } from '../controllers/user.controller.js'
 import {upload} from '../middlewares/multer.middleware.js'
+import { verifyJWT } from '../middlewares/authentication.middleware.js'
 
 const router = Router()
 /*
@@ -39,8 +40,22 @@ router.route("/register").post(
     ),
     registerUser
 )
-// Router.route("/login").post(login)
 
+router.route("/login").post(loginUser)
+
+// securedRoutes 
+
+/*to use custom middleware before any controller simply usss controller ke action ke phle tum bas ,middleware ko pass kardo jiase yha pe verifyJWT
+isliye ham yha pe next lga do so issi liye yhi next() btata hai to useme next bhejo do , jisse usse pta chal jaye ki iss middlware ke badd jo agla hai usse run kara do.
+
+to use multiple middleware :
+router.route("/logout").post(middle1.middle2,action) ;
+so here middle1 and middle2 me simply next do tbhi work.
+*/
+router.route("/logout").post(verifyJWT,logoutUser)
+
+// endpoint for refreshAccessToken action in user controller as yha pe verifyjwt ki jrurat nhi padi as decoded verofy wla hamne action me phle hi kardiya hai .
+router.route('/refresh-token').post(refreshAccessToken)
 export default router
 
 /*
