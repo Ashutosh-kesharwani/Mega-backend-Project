@@ -616,7 +616,7 @@ const refreshAccessToken = asyncHandler(async (req,res)=>{
         // jrurio nhi ki har baar payload data bhi mile , like in acess diya to vo mila . as hamne refershToken bnate waqt sirf id li this to abb decoded me hame sirf id mili hai , so uske through ham user easily find kar skte hai
         const decodedRefreshToken= jwt.verify(
             incomingRefreshToken,
-            REFRESH_TOKEN_SECRET
+            process.env.REFRESH_TOKEN_SECRET
         )
     
        const user= await User.findById(decodedRefreshToken?._id)
@@ -636,8 +636,9 @@ const refreshAccessToken = asyncHandler(async (req,res)=>{
         httpOnly:true,
         secure:true,
        }
-      const {accessToken,newRefreshToken} =await generateAccessAndnewRefreshTokens(user._id);
+      const {accessToken,newRefreshToken} =await  generateAccessAndRefreshTokens(user._id);
     
+
        return res
        .status(200)
        .cookie("accessToken",accessToken)
