@@ -4,6 +4,12 @@ import {User} from '../models/user.models.js'
 import {uploadFileOnCloudinary} from '../utils/cloudinary.js'
 import { ApiResponse } from '../utils/ApiResponse.js'
 
+import jwt from 'jsonwebtoken';
+
+
+
+/*
+
 // ye ek hamare helper fun bnaya tha jha ye khta hai ki hjo req , aaye usse handke karne liye as bhut jgah req aaygi so uska ek wrapper bna diya and yhi usse ham promise ke through handle kar le rahe hai , jisse har req ke lite new promise and try catch na bnana pade async-await me .
 
 // acts as warpper for all req bas jisse hame promise and try cathc sab ke liye na likhna pade
@@ -11,22 +17,21 @@ import { ApiResponse } from '../utils/ApiResponse.js'
 
 // this is a method , action that we create which register our user
 
-/* const registerUser = asyncHandler(async (req,res) => {
+const registerUser = asyncHandler(async (req,res) => {
     // hame sirf yha pe res diya ki hamara status code 200 lelo i.e Ok user register ho gya and json me ek message send kar diye :ok
     res.status(200).json({
         message:"ok work fine"
     })
-}) */
-
-
+}) 
+    
 
 // at last named export all actions built in controller 
-/* 
+
 
 export all the actions generated in this controller , and iss trah named export karlo
 export {
     registerUser,
-} */
+} 
 
 
 /*
@@ -285,6 +290,34 @@ so here hamne cond lgayi hai ki kya ek bhi field empty hai yha pe , as yha if ek
 
 */
 
+
+// yha normal async as isse ham internally yha pe sirf use kar rahe hai koi web req nhi handke so that why we dont use async handler || simplye ye func cal and usme uss user id ko pass kardo , bas ye uss user ko find karke acess and refresh token  generte kar dega .
+const generateAccessAndRefreshTokens = async (userId) => {
+    try{
+        // user find karlo uss id se 
+        const user  = await User.findById(userId);
+        const accessToken =user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
+
+        // as ham acess token and refresh token user ko to denge hi as a response but ham hmare refresh token ko db me bhi store , simple user user obj se key acess and assign generated wla
+
+        user.refreshToken = refreshToken;
+
+        // for saving in database as yha pe jab ham ye save method karnge to mongoDb me aur entry jo hai vo kickIn hone lagegi issliye yha ke save me {validateBeforeSave:false} ye pramas do , save se phle validation mat lgao
+        await    user.save({validateBeforeSave:false})
+
+
+        return {accessToken , refreshToken};
+
+    }catch(error){
+        throw new ApiError(500,"Something went wrong while generating refresh and acess token");
+    }
+}
+
+
+
+
+// Register Controller
 const registerUser= asyncHandler(async (req,res)=>{
     //1 . Take user data from frontend 
     const {fullName, username, email , password} = req.body
@@ -390,7 +423,243 @@ const registerUser= asyncHandler(async (req,res)=>{
   
 });
 
-export {registerUser}
+
+// Login Controller
+/*
+LOGIN TODO STEP :
+1) Take user data fron frontend [postman currently]
+2) match the login email, username , password with the user present in db already
+3) password check if match to theek else error ,
+4) if all is correct then generate acess and refresh token. 
+5) to send these token we sent it in cookies format [secure cookie ]
+6) response bhej do . ki login successfully 
+*/
+const loginUser = asyncHandler(async (req,res)=>{
+    const {email,username , password} = req.body;
+    // console.log(email);
+    // ye use ki user jab tak dono email and username na de tab tak aage na badho 
+    if (!username && !email) {
+        throw new ApiError(400,"username and  email  is required")
+    }
+    /* 
+    you can use this logi if chahte ho ki dono me se ek bhi de user to bhi login ho jaye 
+    note js me || operator ke caes me negation hmesa sbhi cond ke whole me lgta hai like below 
+    like this
+    if (!(username || email)) {
+        throw new ApiError(400,"username or email  is required")
+    } */
+   // jisse chahe email / ya username dono me se koi se bhi mil jaye to wo data bhejdo
+    const user = await User.findOne({
+  $or: [{ username }, { email }]
+});
+
+
+    // if user in dono pe nhi mila to user not exist invalid hai 
+    if (!user) {
+        throw new ApiError(404,"User does not exist");
+    }
+
+    /*
+    User se ham jo acess karenge vo hmare mongoDb ka jo mongoose ODM hai uske method ko acess ke liye use hoga like findOne , etc .
+
+    But if hame jo hmne methods bnaye hai db me model me uske , uske liye use "user" ko .
+    as ye method hmara uss user ke litye kaam karega jisse hamne mongoose ke method se query chlane ke baad liya hai .
+
+    */
+    const isPasswordValid = await user.isPasswordCorrect(password);
+    
+     if (!isPasswordValid) {
+        throw new ApiError(401,"Invalid User Credentials");
+    }
+
+    // if user password shi hai to hamara acess and refresh token generate karao.
+
+    /*
+    As these methods can be used multiple places so isko ek utility ki trah bna lo
+    */
+   /// now call above mtthod to generate them
+
+   const {accessToken , refreshToken} =await generateAccessAndRefreshTokens(user._id);
+
+
+   // Now to send cookies me ye data 
+   /*
+   as jo yha pe user ka refe hai db me vo purana wla hai jha pe refresh token abhi empty so 
+   2 options 
+   1) ya to fir ek db query chla do and new user bna lo aur 
+
+   2)ya to uss user ko update kardo
+
+   check ki expensie rahega ko nhi db ko call karna .
+    */
+
+   const loggedInUser= await User.findById(user._id).select("-password -refreshToken");
+
+   // Now to send cookies
+   /*
+   we have to configure our cokied first '
+   here  httpOnly : true,
+    secure:true, 
+    means ki ye cookie sirf server se modifiable , frontend se nhi . to make it secure .
+
+    now hamara frontend wla dekh to skta hai but not modify .
+
+    so here we have acess of .cookie method as we have use installed cookie-parser pkg.
+    now we can send multiple cookie simultaneously , by using .cookie().cookie() --- this way .
+    here as the optiond obj that we have created , usko bhi pass and value ko key value pait me de do .
+
+    this way : 
+    return res
+   .status(200)
+   .cookie("accessToken" , accessToken,options)
+   .cookie("refreshToken",refreshToken,options)
+
+   */
+
+   const options = {
+    httpOnly : true,
+    secure:true,
+   }
+   // we have send the cookie
+   return res
+   .status(200)
+   .cookie("accessToken" , accessToken,options)
+   .cookie("refreshToken",refreshToken,options)
+   .json(
+    new ApiResponse(
+        200, // statusCode
+        {
+            user:loggedInUser,
+            accessToken,
+            refreshToken
+        },// yhi vo api response class me this.data hai ,
+        "User logged In Successfully" // message .
+    )
+   )
+   /* time to send json response
+   now here as hamnne cookie me to send kardiya to yha res me kyu bhjena as , yha ham wo case handle karna chah rahe hai jhape , wo user khud apne local storage me accessToken , refreshToken use karna chah rha ho .
+   */
+});
+
+// logOut method 
+/*
+As user ko logOut i.e jab vo logout pe click kare to uske user ke 
+cookie clear
+2) also jo refreshtoken store hai db me user ke usse  bhi clear
+
+so here the problem is as jo ye logOut me samgh gaye kya karna hai but hmare pass user hi nhi pta usko find kaise kare , as id se bhi nnhi kar sakte kyuki usse ham acceot bhi nahi kar rahe hai , so yha pe bhi ham 
+-> Use middleware concept : [as ye khta hai ki jane ke phle mujhse mil ke jana .] -> we are going to generate khud ka middleware .
+
+here to get user we are going to user authetication middleware present in src middleware directory .
+
+
+*/
+
+const logoutUser = asyncHandler(async (req,res)=>{
+    // as due to middleware we added before our this action in route to abb hamare pass req.user aa gya as hamne yhi daala tha abb acess aa gya .!!
+
+//    console.log(req.user);
+   /*
+   this method work twpo things find and update as findOne se karte to phle user lo and phir usme se htao values and then , fir validate false karo ye sab . but ham yha pe ye method jisme phle bhjeo kya find karna hai and then kya set update karna hai uske liye we are going to use $set operator .
+   */
+
+   await User.findByIdAndUpdate(
+        req.user._id,
+        //update kya karna hai
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+        // as yha set kardo ki hame new value jo hai usse set bhi kardena so yha refreshToke hmara undefined set ho jayga logout pe .
+        // new:true ye new updated milegi return me not old value
+        {
+            new:true
+        }
+
+      
+   )
+
+     const options={
+        httpOnly:true,
+        secure:true,
+        }
+    // now to clear cookie 
+    return res
+    .status(200)
+    .clearCookie("accessToken",options)
+    .clearCookie("refreshToken",options)
+    .json(
+        new ApiResponse(200,{},"User logged out Successfully")
+    )
+   
+})
+
+
+/*
+Step :Note sab se phle kisi bhi action ko likhne se phle do logic building .
+
+Like here , 
+1) As jab hamara user kisi endPoint ko hit karega to wha se refresh token acess ke liye ham cookie se data ustha lenge . || and mobile app me token iss trah se nhi balik body se lete hau req ki 
+*/
+const refreshAccessToken = asyncHandler(async (req,res)=>{
+    // ye frontend se aayga .
+    const incomingRefreshToken=req.cookies.refreshToken || req.body.refreshToken
+
+    if (!incomingRefreshToken) {
+        throw new ApiError(401,"Unauthorized Request") ; // as iss liye ye msg kyuki hmara refreshtoken glat hai , 
+    }
+
+    // verify jwt iss trah ke kaam ko hame generally try catch me rakhi as maan lo koi error aa jaye to ,
+   
+    try {
+        // jrurio nhi ki har baar payload data bhi mile , like in acess diya to vo mila . as hamne refershToken bnate waqt sirf id li this to abb decoded me hame sirf id mili hai , so uske through ham user easily find kar skte hai
+        const decodedRefreshToken= jwt.verify(
+            incomingRefreshToken,
+            REFRESH_TOKEN_SECRET
+        )
+    
+       const user= await User.findById(decodedRefreshToken?._id)
+    
+       if (!user) {
+            throw new ApiError(401,"Invalid Request Token");
+       }
+    
+       // yha hamara refreshTokne ab  yha tak phuche to vo valid hi rahega 
+    
+       if(incomingRefreshToken !== user?.refreshToken) {
+        throw new ApiError(401,"Refresh token is expired or used");
+       }
+    
+       // as yha tak aagye abb vo match karliye so new acess token generate kardo
+       const options={
+        httpOnly:true,
+        secure:true,
+       }
+      const {accessToken,newRefreshToken} =await generateAccessAndnewRefreshTokens(user._id);
+    
+       return res
+       .status(200)
+       .cookie("accessToken",accessToken)
+       .cookie("refreshToken",newRefreshToken)
+       .json(
+        new ApiResponse(
+            200,
+            {accessToken,refreshToken: newRefreshToken},
+            "Access token refreshed Successfully"
+        )
+       )
+    } catch (error) {
+        throw new ApiError(401,error?.message || "Invalid refresh token")
+    }
+})
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+}
 
 
 
