@@ -655,11 +655,198 @@ const refreshAccessToken = asyncHandler(async (req,res)=>{
     }
 })
 
+
+/*
+changeCurrentPassword : Action:
+> this action allow us to change the password of the user.
+
+Steps :
+1) 
+*/
+const changeCurrentPassword = asyncHandler( async (req,res)=>{
+    const {oldPassword,newPassword,confirmPassword}= req.body;
+
+    console.table(oldPassword,newPassword,confirmPassword);
+    
+    if (!(newPassword === confirmPassword)) {
+        throw new ApiError(401,"new Password and confirm password must match!");
+    }
+    const user = await User.findById(req.user?._id);
+
+    const isPassCorrect=await user.isPasswordCorrect(oldPassword);
+
+    if (!isPassCorrect) {
+        throw new ApiError(400,"Invalid Old password ")
+    }
+    // yha tak aane ka matlab ki old password shi hai abb new password set karna hai 
+
+
+   
+    // yha tak old bhi shi hai and new bhi shi match with confirm to new password set kardo 
+    user.password = newPassword;
+    await user.save({validateBeforeSave:false})
+
+
+    return res
+    .status(200)
+    .json(new ApiResponse(
+        200,
+        {},
+        "Password Change Successfully"
+
+    ))
+})
+
+
+/*
+Get Current User
+*/
+
+const getCurrentUser= asyncHandler(async (req,res)=>{
+    return res
+    .status(200)
+    .json(200,
+        req.user,
+        "Current user fetched Successfully"
+    );
+})
+
+/*
+Updated Account User details :
+1) phle middleware at route verify user allow hai ki nhi update ke liye we use middleware verifyjwt.
+wrna kisi dusrev ko todhi na allow ki value change kar paye
+> yha ham user ko allow karenge ki vo kya kya cheeze update kar paayga.
+
+Note!! :file update i.e image , video , etc update ka hamesa alg controller rakho imp .
+as if ussi me karenge to hmara pura user fir se update hoga db me jisse congestion badha hai , so optimized production approach is that ki ham file ko update ki liye alg hi controller likhte hai .
+*/
+
+const updateUserAccountDetails = asyncHandler(async (req,res)=>{
+   // suppose yha pe fullname and email de rahe hai 
+   const {fullName,email} = req.body 
+   // if dono me se ek bhi nhi hai 
+   if(!fullName && !email){
+    throw new ApiError(400,"All field are required");
+   }
+
+   const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        email, // same as email:email ES6 new syntax jab key and value both are same .
+      }
+    },
+    {new:true}
+).select("-password")
+// yha hamne direct hi updatedUser me new value add ke waqt hi vo dono field hta di , ek db call bach gyi.
+    return res
+    .status(200)
+    .json(new ApiResponse(200,
+        updatedUser,
+        "Account Details Updated Successfully "
+    ))
+
+})
+
+/*
+File Updated [Avatar Image]
+1) phle middleware at route verify user allow hai ki nhi update ke liye we use middleware verifyjwt.
+wrna kisi dusrev ko todhi na allow ki value change kar paye
+*/
+
+const  updateUserAvatar = asyncHandler(async (req,res)=>{
+
+    // yha ek hi file likha as wha pe jha files who do cheeze set kar rahe the avatar , coverImage dono | yha pe sirf avatar change ka action isliye file likho 
+    const avatarLocalPath = req.file?.path
+
+    if(!avatarLocalPath){
+        throw new ApiError(400,"Avatar file is missing ")
+    }
+    const avatarCloudPath = await uploadFileOnCloudinary(avatarLocalPath)
+
+    if (!avatarCloudPath.url) {
+        throw new ApiError(400,"Error while uploading on Avatar ")
+    }
+
+   const updatedUser= await User.findByIdAndUpdate(
+        req.user?._id,
+        {   // set isliye use kyuki jab sirf kuch limited value hi db me change , if all to direct user obj pass kardo
+            $set:{
+                avatar: avatarCloudPath.url
+            }
+        },
+        {
+            new:true
+        }
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedUser,
+            "Avatar Image updated successfully"
+        )
+    )
+})
+
+/*
+File Updated  [CoverImage]
+1) phle middleware at route verify user allow hai ki nhi update ke liye we use middleware verifyjwt.
+wrna kisi dusrev ko todhi na allow ki value change kar paye
+*/
+
+const  updateUserCoverImage = asyncHandler(async (req,res)=>{
+
+    // yha ek hi file likha as wha pe jha files who do cheeze set kar rahe the avatar , coverImage dono | yha pe sirf avatar change ka action isliye file likho 
+    const coverImageLocalPath = req.file?.path
+
+    if(!coverImageLocalPath){
+        throw new ApiError(400,"CoverImage file is missing ")
+    }
+    const coverImageCloudPath = await uploadFileOnCloudinary(coverImageLocalPath)
+
+    if (!coverImageCloudPath.url) {
+        throw new ApiError(400,"Error while uploading on CoverImage ")
+    }
+
+    const updatedUser =await User.findByIdAndUpdate(
+        req.user?._id,
+        {   // set isliye use kyuki jab sirf kuch limited value hi db me change , if all to direct user obj pass kardo
+            $set:{
+                coverImage: coverImageCloudPath.url
+            }
+        },
+        {
+            new:true
+        }
+    ).select("-password")
+
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedUser,
+            "Cover Image updated successfully"
+        )
+    )
+})
+
 export {
     registerUser,
     loginUser,
     logoutUser,
     refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateUserAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage,
+
 }
 
 
